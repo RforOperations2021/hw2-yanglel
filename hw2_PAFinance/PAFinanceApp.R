@@ -7,6 +7,13 @@ library(plotly)
 
 # load data
 load("PA_M_2006_2018_full.RData")
+pop_max <- max(PA_M_2006_2018_full$Population)
+PA_M_2006_2018_full$deficit <- factor(PA_M_2006_2018_full$deficit, label = c("No", "Yes"))
+year_min <- min(PA_M_2006_2018_full$Reporting_Year)
+year_max <- max(PA_M_2006_2018_full$Reporting_Year)
+county <- unique(c(PA_M_2006_2018_full$county_name, PA_M_2006_2018_full$county_name_2))
+county <- county[!is.na(county)]
+
 
 # Avoid plotly issues 
 pdf(NULL)
@@ -29,15 +36,69 @@ ui <- dashboardPage(
             
             menuItem("External Revenue Dependency", tabName = "Ext", icon = icon("landmark")),
             
-            menuItem("Debt", tabName = "Debt", icon = icon("credit-card"))
+            menuItem("Debt", tabName = "Debt", icon = icon("credit-card")),
+            
+            # create filters
+            sliderInput(
+                inputId = "year",
+                label = "Max Year (Scatterplot & Bar Chart) & Year Range (Line Chart & Data Table)",
+                min = year_min,
+                max = year_max,
+                step = 1,
+                value = c(year_min, year_max),
+                dragRange = T,
+                sep = "",
+                ticks = F
+            ),
+            
+            # check box for municipal type
+            checkboxGroupInput(
+                inputId = "type",
+                label = "Municipality Type",
+                choices = c("City",
+                            "Borough",
+                            "First Class Township",
+                            "Second Class Township"
+                ),
+                selected = c("City",
+                             "Borough",
+                             "First Class Township",
+                             "Second Class Township"
+                )
+            ),
+            
+            # create county comparison filters
+            selectInput(
+                inputId = "county",
+                label = "County (Type to search, backspace to delete)",
+                choices = county,
+                selectize = T ,
+                multiple =  T
+            ),
+            
+            # download button
+            downloadButton(
+                outputId = "download", 
+                label = "Download Data Table"
+            )
+            
         )
         ),
     
     # create body
     dashboardBody(
         tabItems(
+            # first tab
             tabItem(tabName = "SD",
-                    h2("Is Revenue Enough To Cover Expenditure?")
+                    h2("Is Revenue Enough To Cover Expenditure?"),
+                    
+                    fluidRow(
+                        tabBox(
+                            width = 12,
+                            tabPanel("Tab1", "First tab content"),
+                            tabPanel("Tab2", "Tab content 2")
+                        )
+                    )
                     ),
         
             tabItem(tabName = "Ext",
