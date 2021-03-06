@@ -13,14 +13,45 @@ pdf(NULL)
 
 # Define UI
 ui <- dashboardPage(
+    # change dashboard color
     skin = "black",
+    
     # create header
     dashboardHeader(
         title = "PA Municipalities Public Finance Data (2006-2018)",
         titleWidth = 500
         ),
-    dashboardSidebar(),
-    dashboardBody()
+    
+    # create sidebar
+    dashboardSidebar(
+        sidebarMenu(
+            menuItem("Surplus/Deficit", tabName = "SD", icon = icon("money-bill-wave")),
+            
+            menuItem("External Revenue Dependency", tabName = "Ext", icon = icon("landmark")),
+            
+            menuItem("Debt", tabName = "Debt", icon = icon("credit-card"))
+        )
+        ),
+    
+    # create body
+    dashboardBody(
+        tabItems(
+            tabItem(tabName = "SD",
+                    h2("Is Revenue Enough To Cover Expenditure?")
+                    ),
+        
+            tabItem(tabName = "Ext",
+                    h2("Is The Municipality Too Dependent On Other Governments For Revenue?")
+                    ),
+            
+            tabItem(tabName = "Debt",
+                    h2("Is There Too Much Debt?")
+                    )
+        )
+        
+        
+        
+    )
 ) 
     
     
