@@ -94,7 +94,7 @@ ui <- dashboardPage(
     # create body--------------------------------
     dashboardBody(
         tabItems(
-            # first page------------------------
+            ### first page------------------------
             tabItem(tabName = "SD",
                     h2("Is Revenue Enough To Cover Expenditure?"),
                     fluidRow(
@@ -112,10 +112,14 @@ ui <- dashboardPage(
                             "Outliers in both axes are removed to assist visualization",
                             br(),
                             "Median is used due to large outliers.")
+                    ),
+                    
+                    fluidRow(
+                        box(DT::dataTableOutput(outputId = "table1"), width = 12)
                     )
             ),
             
-            # second page---------------------------------
+            ### second page---------------------------------
             tabItem(tabName = "Ext",
                     h2("Is The Municipality Too Dependent On Other Governments For Revenue?"),
                     fluidRow(
@@ -132,10 +136,14 @@ ui <- dashboardPage(
                         
                         box(plotlyOutput("bar"),
                             height= "450px"),
+                    ),
+                    
+                    fluidRow(
+                        box(DT::dataTableOutput(outputId = "table2"), width = 12)
                     )
             ),
             
-            # Third page---------------------
+            ### Third page---------------------
             tabItem(tabName = "Debt",
                     h2("Is There Too Much Debt?"),
                     fluidRow(
@@ -148,8 +156,12 @@ ui <- dashboardPage(
                     fluidRow(
                         box(plotlyOutput("histo"), 
                             width = 12,
-                            "The maximum per capita value is removed to help in vizualization."
-                        )
+                            "The largest single outlier (>$150,000) is removed to help in vizualization."
+                            )
+                    ),
+                    
+                    fluidRow(
+                        box(DT::dataTableOutput(outputId = "table3"), width = 12)
                     )
             )
         )
@@ -196,7 +208,7 @@ server <- function(input, output) {
     
     
     # 1st page: Surplus/deficit------------------------------------
-    # Create scatterplot
+    ### Create scatterplot--------------------------------------
     output$scatter <- renderPlotly({
         # identify outliers
         outliers_x <- (boxplot(PA_subset()$Expenditures_Per_Capita))$out
@@ -228,7 +240,7 @@ server <- function(input, output) {
         )
     })
     
-    # value boxes for surplus/deficit tab ----------------------
+    ### value boxes for surplus/deficit tab ----------------------
     output$YearOfDeficit <- renderValueBox({
         valueBox(round(mean(PA_subset()$no_of_deficit_year, na.rm = T),0), 
                  paste("Average Years of Deficits As Of", max(input$year) , "(out of", max(input$year) - year_min, ")"), 
@@ -263,10 +275,35 @@ server <- function(input, output) {
                  color = "green")
     })
     
+    ### Create data table page 1-------------------------------
+    output$table1 <- DT::renderDataTable({
+        a <- DT::datatable(data = PA_subset()[,c(1:2,6:13)], 
+                      options = list(pageLength = 10), 
+                      rownames = FALSE,
+                      colnames = c("Year" = "Reporting_Year",
+                                   "Municipal" = "full_municipal_name",
+                                   "Type" = "Municipality_Type",
+                                   "Revenues" = "Total_Revenues",
+                                   "Revenues\nPer\nCapita" = "Revenues_Per_Capita",
+                                   "Expenditures" = "Total_Expenditures",
+                                   "Expenditures\nPer\nCapita" = "Expenditures_Per_Capita",
+                                   "Deficit Years" = "no_of_deficit_year",  
+                                   "Surplus\nLoss" = "Revenues_Over_Expenditures",
+                                   "Population" = "Population"
+                      ),
+                      style = 'bootstrap',
+                      caption = 'Table 1: Surplus/Deficit Indicators.',
+                      filter = 'top'
+                      ) %>% 
+            DT::formatCurrency(5:9, digits = 0)
+    
+        return(a)
+        })
+    
     # Second page: External revenue -----------------------
     
-    # charts for second page------------------------------
-    # line charts
+    ### charts for second page------------------------------
+    ### line charts
     output$line <- renderPlotly({
         # create table of median
         med_subset_time_1 <- PA_subset_time() %>%
@@ -287,7 +324,7 @@ server <- function(input, output) {
         )
         })
     
-    # bar chart---------------------------
+    ### bar chart---------------------------
     output$bar <- renderPlotly({
         # create table of median percentage share
         med_subset_1 <- PA_subset() %>%
@@ -316,7 +353,7 @@ server <- function(input, output) {
         )
      })
     
-    # info boxes for second page -------------------------------
+    ### info boxes for second page -------------------------------
     output$ExtPer <- renderInfoBox({
         infoBox(paste("Median Intergovernmental Revenue Per Capita In", max(input$year)),
                 paste("$", (scales::comma_format()(round(median(PA_subset()$intergovernmental_per_capita, na.rm = T),0)))),
@@ -331,14 +368,40 @@ server <- function(input, output) {
                 color = "blue")
     })
     
+    ### Create data table page 2-------------------------------
+    output$table2 <- DT::renderDataTable({
+        a <- DT::datatable(data = PA_subset_time()[,c(1:2,6:7,19:24)], 
+                           options = list(pageLength = 10), 
+                           rownames = FALSE,
+                           colnames = c("Year" = "Reporting_Year",
+                                        "Municipal" = "full_municipal_name",
+                                        "Type" = "Municipality_Type",
+                                        "IG Revenues" = "total_intergovernmental_Revenues",
+                                        " IG Revenues\nPer\nCapita" = "intergovernmental_per_capita",
+                                        "Revenue Share of\nIG Revenues" = "ext_revenue_over_revenue",
+                                        "Federal\nPortion" = "Intergovernmental_Revenues_Federal_Government",
+                                        "State\nPortion" = "Intergovernmental_Revenues_State_Government",
+                                        "Local\nPortion" = "Intergovernmental_Revenues_Local_Government",
+                                        "Population" = "Population"
+                           ),
+                           style = 'bootstrap',
+                           caption = 'Table 2: Intergovernmental Revenue(IG) Indicators.',
+                           filter = 'top'
+        ) %>% 
+            DT::formatCurrency(c(5,7:9), digits = 0) %>% 
+            DT::formatPercentage(6, digits = 0)
+        
+        return(a)
+    })
+    
     # Third page: debt ----------------------------------
     
-    # boxplot-----------------------
+    ### boxplot-----------------------
     output$histo <- renderPlotly({
 
-        # remove max value
-        a <- PA_subset() %>% 
-            filter(debt_per_capita < max(debt_per_capita))
+        # remove the single large outlier
+            a <- PA_subset() %>% 
+            filter(debt_per_capita < 150000)
         
         # plot
             ggplotly(
@@ -352,7 +415,7 @@ server <- function(input, output) {
         
     })
     
-    # value boxes for debt tab ----------------------
+    ### value boxes for debt tab ----------------------
     output$debtpc <- renderValueBox({
         valueBox(paste("$", round(mean(PA_subset()$debt_per_capita, na.rm = T),0)), 
                  paste("Mean Debt Per Capita In", max(input$year)), 
@@ -380,6 +443,33 @@ server <- function(input, output) {
                  icon = icon("money-bill-alt"), 
                  color = "green")
     })
+    
+    ### Create data table page 3-------------------------------
+    output$table3 <- DT::renderDataTable({
+        a <- DT::datatable(data = PA_subset()[,c(1:2,6:7,14:18)], 
+                           options = list(pageLength = 10), 
+                           rownames = FALSE,
+                           colnames = c("Year" = "Reporting_Year",
+                                        "Municipal" = "full_municipal_name",
+                                        "Type" = "Municipality_Type",
+                                        "Total Debt" = "Total_Debt",
+                                        "Total Debt\nPer\nCapita" = "debt_per_capita",
+                                        "Debt over\nRevenue" = "debt_over_revenue",
+                                        "Debt Payments\nPer Capita" = "Debt_Service_capita",
+                                        "Debt Payments\n over Expenditure" = "debt_service_over_exp" ,  
+                                        "Population" = "Population"
+                           ),
+                           style = 'bootstrap',
+                           caption = 'Table 3: Debt Indicators.',
+                           filter = 'top'
+        ) %>% 
+            DT::formatCurrency(c(5:6,9), digits = 0) %>% 
+            DT::formatPercentage(7:8, digits = 0)
+        
+        return(a)
+    })
+    
+    
     
 }
     
