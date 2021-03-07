@@ -98,10 +98,10 @@ ui <- dashboardPage(
             tabItem(tabName = "SD",
                     h2("Is Revenue Enough To Cover Expenditure?"),
                     fluidRow(
-                        valueBoxOutput("YearOfDeficit", width = 6 ),
-                        valueBoxOutput("Numberofdeficits", width = 6),
-                        valueBoxOutput("DeficitSize", width = 6),
-                        valueBoxOutput("surplusSize", width = 6)
+                        valueBoxOutput("YearOfDeficit", width = 3 ),
+                        valueBoxOutput("Numberofdeficits", width = 3),
+                        valueBoxOutput("DeficitSize", width = 3),
+                        valueBoxOutput("surplusSize", width = 3)
                     ),
                     
                     fluidRow(
@@ -109,7 +109,7 @@ ui <- dashboardPage(
                             width = 12, 
                             "Above line (y = x) means presence of surplus and below line means presence of deficit.",
                             br(),
-                            "Outliers in both axes are removed to assist to visualization",
+                            "Outliers in both axes are removed to assist visualization",
                             br(),
                             "Median is used due to large outliers.")
                     )
@@ -129,14 +129,28 @@ ui <- dashboardPage(
                             "Fund balance is the accumulated financial resources that is still unused over the years.", 
                             br(), 
                             "Median is used due to large outliers."),
-                
+                        
                         box(plotlyOutput("bar"),
                             height= "450px"),
-            )
+                    )
             ),
             
+            # Third page---------------------
             tabItem(tabName = "Debt",
-                    h2("Is There Too Much Debt?")
+                    h2("Is There Too Much Debt?"),
+                    fluidRow(
+                        valueBoxOutput("debtpc", width = 3),
+                        valueBoxOutput("debtshare", width = 3),
+                        valueBoxOutput("debtservicepc", width = 3),
+                        valueBoxOutput("debtserviceshare", width = 3)
+                    ),
+                    
+                    fluidRow(
+                        box(plotlyOutput("histo"), 
+                            width = 12,
+                            "The maximum per capita value is removed to help in vizualization."
+                        )
+                    )
             )
         )
     )
@@ -300,12 +314,7 @@ server <- function(input, output) {
             tooltip = c("y")
             
         )
-        
-        
-        
-    })
-    
-
+     })
     
     # info boxes for second page -------------------------------
     output$ExtPer <- renderInfoBox({
@@ -320,6 +329,56 @@ server <- function(input, output) {
                 paste((round((median(PA_subset()$ext_revenue_over_revenue, na.rm = T))*100,0)), "%"),
                 icon = icon("hands-helping"), 
                 color = "blue")
+    })
+    
+    # Third page: debt ----------------------------------
+    
+    # boxplot-----------------------
+    output$histo <- renderPlotly({
+
+        # remove max value
+        a <- PA_subset() %>% 
+            filter(debt_per_capita < max(debt_per_capita))
+        
+        # plot
+            ggplotly(
+                ggplot(data = a, aes(x = Municipality_Type, y = debt_per_capita)) +
+                    geom_boxplot(aes(color = Municipality_Type)) +
+                    xlab("Municipality Type") + 
+                    ylab("Debt Per Capita") +
+                    labs(title = (paste("Debt Per Capita In", max(input$year)))) +
+                    theme(legend.position = "none")
+            )
+        
+    })
+    
+    # value boxes for debt tab ----------------------
+    output$debtpc <- renderValueBox({
+        valueBox(paste("$", round(mean(PA_subset()$debt_per_capita, na.rm = T),0)), 
+                 paste("Mean Debt Per Capita In", max(input$year)), 
+                 icon = icon("piggy-bank"), 
+                 color = "purple")
+    })
+    
+    output$debtshare <- renderValueBox({
+        valueBox(paste(round((mean(PA_subset()$debt_over_revenue, na.rm = T))*100,0), "%"), 
+                 paste("Mean Debt Share of Total Revenue In", max(input$year)), 
+                 icon = icon("money-check-alt"), 
+                 color = "blue")
+    })
+    
+    output$debtservicepc <- renderValueBox({
+        valueBox(paste("$", round(mean(PA_subset()$Debt_Service_capita, na.rm = T),0)), 
+                 paste("Mean Annual Debt Payments Per Capita In", max(input$year)), 
+                 icon = icon("money-check"), 
+                 color = "orange")
+    })
+    
+    output$debtserviceshare <- renderValueBox({
+        valueBox(paste(round((mean(PA_subset()$debt_service_over_exp, na.rm = T))*100,0), "%"), 
+                 paste("Mean Annual Debt Payment Share of Expenditure In", max(input$year)), 
+                 icon = icon("money-bill-alt"), 
+                 color = "green")
     })
     
 }
