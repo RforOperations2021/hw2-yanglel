@@ -5,7 +5,7 @@ library(tools)
 library(shinydashboard)
 library(plotly)
 
-# load data
+# load data-------------------------------------------------
 load("PA_M_2006_2018_full.RData")
 year_min <- min(PA_M_2006_2018_full$Reporting_Year)
 year_max <- max(PA_M_2006_2018_full$Reporting_Year)
@@ -18,18 +18,18 @@ PA_M_2006_2018_full$date <- as.Date(
 # Avoid plotly issues 
 pdf(NULL)
 
-# Define UI
+# Define UI-------------------------------------------
 ui <- dashboardPage(
     # change dashboard color
     skin = "black",
     
-    # create header
+    # create header--------------------------------------
     dashboardHeader(
         title = "PA Municipalities Public Finance Data (2006-2018)",
         titleWidth = 500
     ),
     
-    # create sidebar
+    # create sidebar ----------------------------------------
     dashboardSidebar(
         sidebarMenu(
             menuItem("Surplus/Deficit", 
@@ -43,6 +43,10 @@ ui <- dashboardPage(
             menuItem("Debt", 
                      tabName = "Debt", 
                      icon = icon("credit-card")),
+            
+            menuItem("Sources and Download", 
+                     tabName = "Source", 
+                     icon = icon("download")),
             
             # create filters
             sliderInput(
@@ -80,13 +84,13 @@ ui <- dashboardPage(
                 choices = county,
                 selectize = T ,
                 multiple =  T
-            ),
-            
-            # download button
-            downloadButton(
-                outputId = "download",
-                label = "Download Data Table"
             )
+            
+            # # download button
+            # downloadButton(
+            #     outputId = "download",
+            #     label = "Download Data Table"
+            # )
             
         )
     ),
@@ -157,16 +161,35 @@ ui <- dashboardPage(
                         box(plotlyOutput("histo"), 
                             width = 12,
                             "The largest single outlier (>$150,000) is removed to help in vizualization."
-                            )
+                        )
                     ),
                     
                     fluidRow(
                         box(DT::dataTableOutput(outputId = "table3"), width = 12)
                     )
+            ),
+            
+            ### Fourth page---------------------
+            tabItem(tabName = "Source",
+                    h2("Source and Download"),
+                    
+                    fluidRow(
+                        box(uiOutput("source_1"),
+                            width = 12
+                        ),
+                        
+                        # download button
+                        box(h3("To Download Data As Filtered In the SideBar:"), 
+                            downloadButton(
+                                outputId = "download",
+                                label = "Download Data Table")
+                        )
+                    )
             )
         )
     )
 )
+
 
 
 # Define server logic-----------------------------
@@ -278,27 +301,27 @@ server <- function(input, output) {
     ### Create data table page 1-------------------------------
     output$table1 <- DT::renderDataTable({
         a <- DT::datatable(data = PA_subset()[,c(1:2,6:13)], 
-                      options = list(pageLength = 10), 
-                      rownames = FALSE,
-                      colnames = c("Year" = "Reporting_Year",
-                                   "Municipal" = "full_municipal_name",
-                                   "Type" = "Municipality_Type",
-                                   "Revenues" = "Total_Revenues",
-                                   "Revenues\nPer\nCapita" = "Revenues_Per_Capita",
-                                   "Expenditures" = "Total_Expenditures",
-                                   "Expenditures\nPer\nCapita" = "Expenditures_Per_Capita",
-                                   "Deficit Years" = "no_of_deficit_year",  
-                                   "Surplus\nLoss" = "Revenues_Over_Expenditures",
-                                   "Population" = "Population"
-                      ),
-                      style = 'bootstrap',
-                      caption = 'Table 1: Surplus/Deficit Indicators.',
-                      filter = 'top'
-                      ) %>% 
+                           options = list(pageLength = 10), 
+                           rownames = FALSE,
+                           colnames = c("Year" = "Reporting_Year",
+                                        "Municipal" = "full_municipal_name",
+                                        "Type" = "Municipality_Type",
+                                        "Revenues" = "Total_Revenues",
+                                        "Revenues\nPer\nCapita" = "Revenues_Per_Capita",
+                                        "Expenditures" = "Total_Expenditures",
+                                        "Expenditures\nPer\nCapita" = "Expenditures_Per_Capita",
+                                        "Deficit Years" = "no_of_deficit_year",  
+                                        "Surplus\nLoss" = "Revenues_Over_Expenditures",
+                                        "Population" = "Population"
+                           ),
+                           style = 'bootstrap',
+                           caption = 'Table 1: Surplus/Deficit Indicators.',
+                           filter = 'top'
+        ) %>% 
             DT::formatCurrency(5:9, digits = 0)
-    
+        
         return(a)
-        })
+    })
     
     # Second page: External revenue -----------------------
     
@@ -322,7 +345,7 @@ server <- function(input, output) {
                 scale_color_discrete(name = "Municipality Type"),
             tooltip = c("x", "y")
         )
-        })
+    })
     
     ### bar chart---------------------------
     output$bar <- renderPlotly({
@@ -330,7 +353,7 @@ server <- function(input, output) {
         med_subset_1 <- PA_subset() %>%
             mutate(
                 federal_share =
-                          (Intergovernmental_Revenues_Federal_Government/total_intergovernmental_Revenues),
+                    (Intergovernmental_Revenues_Federal_Government/total_intergovernmental_Revenues),
                 state_share = Intergovernmental_Revenues_State_Government/total_intergovernmental_Revenues,
                 local_share = Intergovernmental_Revenues_Local_Government/total_intergovernmental_Revenues) %>% 
             group_by(Reporting_Year, Municipality_Type) %>% 
@@ -351,7 +374,7 @@ server <- function(input, output) {
             tooltip = c("y")
             
         )
-     })
+    })
     
     ### info boxes for second page -------------------------------
     output$ExtPer <- renderInfoBox({
@@ -398,20 +421,20 @@ server <- function(input, output) {
     
     ### boxplot-----------------------
     output$histo <- renderPlotly({
-
+        
         # remove the single large outlier
-            a <- PA_subset() %>% 
+        a <- PA_subset() %>% 
             filter(debt_per_capita < 150000)
         
         # plot
-            ggplotly(
-                ggplot(data = a, aes(x = Municipality_Type, y = debt_per_capita)) +
-                    geom_boxplot(aes(color = Municipality_Type)) +
-                    xlab("Municipality Type") + 
-                    ylab("Debt Per Capita") +
-                    labs(title = (paste("Debt Per Capita In", max(input$year)))) +
-                    theme(legend.position = "none")
-            )
+        ggplotly(
+            ggplot(data = a, aes(x = Municipality_Type, y = debt_per_capita)) +
+                geom_boxplot(aes(color = Municipality_Type)) +
+                xlab("Municipality Type") + 
+                ylab("Debt Per Capita") +
+                labs(title = (paste("Debt Per Capita In", max(input$year)))) +
+                theme(legend.position = "none")
+        )
         
     })
     
@@ -469,11 +492,41 @@ server <- function(input, output) {
         return(a)
     })
     
+    # download data table -----------------------------
+    
+    output$download <- downloadHandler(
+        filename = function() {
+            paste("PA_From", min(input$year), "To", max(input$year), ".csv", 
+                  sep = "")
+        },
+        content = function(file) {
+            b <- PA_subset_time() %>% 
+                select(-c(date,county_name,county_name_2a,deficit))
+            write.csv(b, file, row.names = FALSE)
+        }
+    )
+    
+    # source text -----------------------------
+    output$source_1 <- renderUI({
+        url_1 <- tags$a(href="http://munstats.pa.gov/Reports/ReportInformation2.aspx?report=StatewideMuniAfr", "PA Department of Community & Economic Development")
+        url_2 <- tags$a(href="https://www.census.gov/cgi-bin/geo/shapefiles/index.php", "Census Shapefile")
+        
+        tags$div(
+            h1("This Data Set was cleaned and merged using the following sources:"),
+            br(),
+            tagList("1. Municipal Data:", url_1 ),
+            br(),
+            tagList("2. Municipal Names:", url_2 ),
+            br(),
+            p("To get accurate municipal names and its corresponding counties, I have to refer to census data. Indicators were derived from the financial numbers of DCED.")
+        )
+    })
+    
     
     
 }
-    
-    
+
+
 
 # Run the application 
 shinyApp(ui = ui, server = server)
