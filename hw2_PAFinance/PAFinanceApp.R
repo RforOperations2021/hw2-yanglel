@@ -91,10 +91,10 @@ ui <- dashboardPage(
         )
     ),
     
-    # create body
+    # create body--------------------------------
     dashboardBody(
         tabItems(
-            # first page
+            # first page------------------------
             tabItem(tabName = "SD",
                     h2("Is Revenue Enough To Cover Expenditure?"),
                     fluidRow(
@@ -115,7 +115,7 @@ ui <- dashboardPage(
                     )
             ),
             
-            # second page
+            # second page---------------------------------
             tabItem(tabName = "Ext",
                     h2("Is The Municipality Too Dependent On Other Governments For Revenue?"),
                     fluidRow(
@@ -125,11 +125,13 @@ ui <- dashboardPage(
                     
                     fluidRow(
                         box(plotlyOutput("line"), 
-                            width = 12, 
+                            height= "450px",
                             "Fund balance is the accumulated financial resources that is still unused over the years.", 
                             br(), 
-                            "Median is used due to large outliers."
-                    )
+                            "Median is used due to large outliers."),
+                
+                        box(plotlyOutput("bar"),
+                            height= "450px"),
             )
             ),
             
@@ -251,27 +253,58 @@ server <- function(input, output) {
     
     # charts for second page------------------------------
     # line charts
-    
     output$line <- renderPlotly({
-                # create table of median
-                med_subset_time_1 <- PA_subset_time() %>%
-                        group_by(Municipality_Type, date) %>%
-                        summarize(median =
-                                median(ext_revenue_over_revenue, na.rm = T)*100)
-
-    ggplotly(
+        # create table of median
+        med_subset_time_1 <- PA_subset_time() %>%
+            group_by(Municipality_Type, date) %>%
+            summarize(median = median(ext_revenue_over_revenue, na.rm = T)*100)
+        
+        ggplotly(
             ggplot(data = med_subset_time_1, aes(x = date, y = median)) +
-                    geom_line(aes(color = Municipality_Type)) +
-                geom_point() +
-                    scale_x_date(date_labels = "%Y", date_breaks = "3 years") +
-                    xlab("Year") +
-                    ylab("Share of External Revenue(%)") +
-                    labs(title = paste(
-                    "Median Revenue Share of Intergovernmental Revenue From",
-                    min(input$year), "To", max(input$year))),
-                    tooltip = c("x", "y")
-     )
+                geom_line(aes(color = Municipality_Type)) +
+                geom_point(aes(color = Municipality_Type)) +
+                scale_x_date(date_labels = "%Y", date_breaks = "3 years") +
+                xlab("Year") +
+                ylab("Median Share of Total Revenue(%)") +
+                labs(title = paste(
+                    "Reliance on Intergovernmental Revenue", "\nFrom",min(input$year), "To", max(input$year)))+ 
+                scale_color_discrete(name = "Municipality Type"),
+            tooltip = c("x", "y")
+        )
         })
+    
+    # bar chart---------------------------
+    output$bar <- renderPlotly({
+        # create table of median percentage share
+        med_subset_1 <- PA_subset() %>%
+            mutate(
+                federal_share =
+                          (Intergovernmental_Revenues_Federal_Government/total_intergovernmental_Revenues),
+                state_share = Intergovernmental_Revenues_State_Government/total_intergovernmental_Revenues,
+                local_share = Intergovernmental_Revenues_Local_Government/total_intergovernmental_Revenues) %>% 
+            group_by(Reporting_Year, Municipality_Type) %>% 
+            summarize(
+                federal = round(((median(federal_share, na.rm = T))*100),0),
+                state = round(((median(state_share, na.rm = T))*100),0),
+                local = round(((median(local_share, na.rm = T))*100),0)
+            ) %>% 
+            pivot_longer(c("federal","state","local"), names_to = "level", values_to = "share")
+        
+        ggplotly(
+            ggplot(data = med_subset_1, aes(x = level, y = share, fill = Municipality_Type)) +
+                geom_bar(stat = "identity", position = "dodge") +
+                xlab("Source Government Level") + 
+                ylab("Median Share of Total Intergovernmental Revenue") +
+                labs(title = (paste("Sources of Intergovernmental Revenue In", max(input$year))))+ 
+                scale_fill_discrete(name = "Municipality Type"),
+            tooltip = c("y")
+            
+        )
+        
+        
+        
+    })
+    
 
     
     # info boxes for second page -------------------------------
